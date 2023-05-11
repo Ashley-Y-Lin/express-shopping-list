@@ -1,8 +1,9 @@
 "use strict";
 
 const express = require("express");
+const { checkValidItem } = require("./middleWare");
 
-const db = require("./fakeDb");
+const { shoppingCart } = require("./fakeDb");
 const { ExpressError,
   NotFoundError,
   UnauthorizedError,
@@ -11,67 +12,65 @@ const { ExpressError,
 
 const router = new express.Router();
 
-//TODO: implement a class around the item
-// TODO: make docstrings give example of response
-
-//TODO: make this middleware
-function checkValidItem(item) {
-  if (!item.name || !(typeof item.name === 'string') ||
-    !item.price || !(typeof item.price === 'number')) {
-    throw new BadRequestError();
-  }
-}
-
-/** GET /items: returns list of shopping items */
+/** GET /items: returns list of shopping items
+ * e.g. { items: [
+          { name: "popsicle", price: 1.45 },
+          { name: "cheerios", price: 3.40 }
+        ]}
+*/
 router.get("/", function (req, res) {
-  return res.json({ items: db.items });
+  return res.json({ items: shoppingCart.items });
 });
 
-/** POST /items: accepts JSON body, adds item, returns added item */
-router.post("/", function (req, res) {
-  if (req.body === undefined) throw new BadRequestError();
+/** POST /items: accepts JSON body, adds item, returns added item
+ * {name: "popsicle", price: 1.45} =>
+   {added: {name: "popsicle", price: 1.45}}
+*/
+router.post("/", checkValidItem, function (req, res) {
+  shoppingCart.add(req.body);
 
-  checkValidItem(req.body);
-
-  db.items.push(req.body);
   return res.status(201).json({ added: req.body });
 });
 
-/** GET /items/:names: returns a single item */
+/** GET /items/:names: returns a single item
+ * e.g. {name: "popsicle", "price": 1.45}
+*/
 router.get("/:name", function (req, res) {
-  //TODO: use .find (add this method to your class)
-  for (let i = 0; i < db.items.length; i++) {
-    if (db.items[i].name === req.params.name) {
-      return res.json(db.items[i]);
-    }
-  }
-  throw new NotFoundError();
+  const foundItem = shoppingCart.findItem(req.params.name);
+
+  if (!foundItem) throw new NotFoundError();
+
+  return res.json(foundItem);
 });
 
-/** PATCH /items/:name: accepts JSON body, modify item, and return the item */
+/** PATCH /items/:name: accepts JSON body, modify item, and return the item
+ * {name: "new popsicle", price: 2.45} =>
+  {updated: {name: "new popsicle", price: 2.45}}
+*/
 router.patch("/:name", function (req, res) {
   if (req.body === undefined) throw new BadRequestError();
 
-  for (let i = 0; i < db.items.length; i++) {
-    if (db.items[i].name === req.params.name) {
-      db.items[i].name = req.body.name || db.items[i].name;
-      db.items[i].price = req.body.price || db.items[i].price;
-      return res.json({ updated: db.items[i] });
-    }
-  }
-  throw new NotFoundError();
+  let foundItem = shoppingCart.findItem(req.params.name);
+  if (!foundItem) throw new NotFoundError();
+
+  foundItem.name = req.body.name || foundItem.name;
+  foundItem.price = req.body.price || foundItem.price;
+
+  return res.json({ updated: foundItem });
 });
 
-/** DELETE /items/:name: delete item */
+/** DELETE /items/:name: delete item
+ * returns {message: "Deleted"}
+*/
 router.delete("/:name", function (req, res) {
   //TODO: try to use a filter or findIndex, also allows you to fail fast
-  for (let i = 0; i < db.items.length; i++) {
-    if (db.items[i].name === req.params.name) {
-      db.items.splice(i, 1);
-      return res.json({ message: "Deleted" });
-    }
-  }
-  throw new NotFoundError();
+
+  const foundItem = shoppingCart.findItem(req.params.name);
+  if (!foundItem) throw new NotFoundError();
+
+  shoppingCart.remove(foundItem);
+
+  return res.json({ message: "Deleted" });
 });
 
 module.exports = router;

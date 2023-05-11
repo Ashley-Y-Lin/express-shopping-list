@@ -3,14 +3,14 @@
 const request = require("supertest");
 
 const app = require("./app");
-let db = require("./fakeDb");
+const { shoppingCart } = require("./fakeDb");
 
 beforeEach(function () {
-  db.items.push({ name: "popsicle", price: 1.45 });
+  shoppingCart.add({ name: "popsicle", price: 1.45 });
 });
 
 afterEach(function () {
-  db.items = [];
+  shoppingCart.items = [];
 });
 
 
@@ -53,7 +53,7 @@ describe("POST /items", function () {
         price: 3.40
       });
     expect(resp.statusCode).toEqual(201);
-    expect(db.items).toEqual([
+    expect(shoppingCart.items).toEqual([
       { name: "popsicle", price: 1.45 },
       { name: "cheerios", price: 3.40 }
     ]);
@@ -64,7 +64,7 @@ describe("POST /items", function () {
       .post(`/items`)
       .send();
     expect(resp.statusCode).toEqual(400);
-    expect(db.items).toEqual([
+    expect(shoppingCart.items).toEqual([
       { name: "popsicle", price: 1.45 },
     ]);
   });
@@ -146,7 +146,7 @@ describe("DELETE /items/:name", function() {
     const resp = await request(app)
       .delete(`/items/popsicle`);
     expect(resp.body).toEqual({ message: "Deleted" });
-    expect(db.items.length).toEqual(0);
+    expect(shoppingCart.items.length).toEqual(0);
   });
 
   it("Throws a NotFoundError when the item doesn't exist", async function () {
